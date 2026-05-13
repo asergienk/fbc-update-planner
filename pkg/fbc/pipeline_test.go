@@ -22,7 +22,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/fgiudici/update-planner/pkg/plcc"
+	"github.com/release-engineering/fbc-update-planner/pkg/plcc"
 )
 
 // TestReferenceFile runs the full pipeline on the reference PLCC testdata/plcc.json file.

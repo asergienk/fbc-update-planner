@@ -21,8 +21,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/fgiudici/update-planner/pkg/fbc"
-	"github.com/fgiudici/update-planner/pkg/plcc"
+	"github.com/release-engineering/fbc-update-planner/pkg/fbc"
+	"github.com/release-engineering/fbc-update-planner/pkg/plcc"
 )
 
 func main() {

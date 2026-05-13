@@ -24,7 +24,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/fgiudici/update-planner/pkg/plcc"
+	"github.com/release-engineering/fbc-update-planner/pkg/plcc"
 	"sigs.k8s.io/yaml"
 )
 

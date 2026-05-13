@@ -1,4 +1,4 @@
-module github.com/fgiudici/update-planner
+module github.com/release-engineering/fbc-update-planner
 
 go 1.25.8
 

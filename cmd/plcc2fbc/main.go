@@ -25,6 +25,8 @@ import (
 	"github.com/release-engineering/fbc-update-planner/pkg/plcc"
 )
 
+const packageNotFound = 1
+
 func main() {
 	var outputPath string
 	var plccDumpPath string
@@ -70,5 +72,9 @@ func main() {
 	}
 
 	blobCount := fbc.GenerateFBC(catalog.Data, output, os.Stderr)
+	if blobCount == 0 {
+		log.Print("no valid FBC data found")
+		os.Exit(packageNotFound)
+	}
 	log.Printf("wrote %d FBC blobs", blobCount)
 }

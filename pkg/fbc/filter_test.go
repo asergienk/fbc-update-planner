@@ -180,7 +180,7 @@ func TestValidatePhases(t *testing.T) {
 			wantOK: false,
 		},
 		{
-			name: "end before begin",
+			name: "end before start",
 			pkg: Package{Versions: []Version{{
 				Name: "1.0",
 				Phases: []Phase{

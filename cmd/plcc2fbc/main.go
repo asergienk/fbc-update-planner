@@ -60,7 +60,7 @@ func main() {
 
 	log.Printf("fetched %d products from PLCC", catalog.Len())
 	catalog.FilterPackages()
-	log.Printf("found %d distinct packages", catalog.Len())
+	log.Printf("found %d packages", catalog.Len())
 	catalog.SortByPackage()
 
 	if plccDumpPath != "" {
@@ -71,7 +71,10 @@ func main() {
 		return
 	}
 
-	blobCount := fbc.GenerateFBC(catalog.Data, output, os.Stderr)
+	blobCount, err := fbc.GenerateFBC(catalog.Data, output, os.Stderr)
+	if err != nil {
+		log.Fatalf("failed to generate FBC: %v", err)
+	}
 	if blobCount == 0 {
 		log.Print("no valid FBC data found")
 		os.Exit(packageNotFound)

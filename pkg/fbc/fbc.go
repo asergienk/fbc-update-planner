@@ -45,7 +45,7 @@ type Version struct {
 	PlatformCompatibility []Platform `json:"platformCompatibility,omitempty"`
 }
 
-// Phase represents a lifecycle phase with begin and end dates.
+// Phase represents a lifecycle phase with start and end dates.
 type Phase struct {
 	Name      string `json:"name"`
 	StartDate string `json:"startDate"`
@@ -112,20 +112,20 @@ func translateVersion(v plcc.Version) Version {
 }
 
 func translatePhase(ph plcc.Phase) Phase {
-	begin := ""
+	start := ""
 	if t, err := plcc.ParseTimestamp(ph.StartDate); err == nil {
-		begin = plcc.FormatDate(t)
+		start = plcc.FormatDate(t)
 	}
 	end := ""
 	if t, err := plcc.ParseTimestamp(ph.EndDate); err == nil {
 		end = plcc.FormatDate(t)
 	}
-	return Phase{Name: ph.Name, StartDate: begin, EndDate: end}
+	return Phase{Name: ph.Name, StartDate: start, EndDate: end}
 }
 
 // GenerateFBC converts PLCC products to FBC YAML, writing valid packages to output
 // and validation failures as JSON to logOutput. Returns the number of emitted FBC blobs.
-func GenerateFBC(products []plcc.Product, output io.Writer, logOutput io.Writer) int {
+func GenerateFBC(products []plcc.Product, output io.Writer, logOutput io.Writer) (int, error) {
 	pipeline := DefaultFilters()
 
 	pkgCount := make(map[string]int)
@@ -171,13 +171,15 @@ func GenerateFBC(products []plcc.Product, output io.Writer, logOutput io.Writer)
 		}
 
 		if blobCount > 0 {
-			fmt.Fprintln(output, "---")
+			yamlBytes = append([]byte("---\n"), yamlBytes...)
 		}
-		fmt.Fprint(output, string(yamlBytes))
+		if _, err := output.Write(yamlBytes); err != nil {
+			return blobCount, fmt.Errorf("writing YAML for package %q: %w", product.Package, err)
+		}
 		blobCount++
 	}
 
-	return blobCount
+	return blobCount, nil
 }
 
 func compareMajorMinor(a, b string) int {

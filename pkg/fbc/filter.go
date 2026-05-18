@@ -50,9 +50,9 @@ func (p *Package) Filter(filters ...Filter) []string {
 }
 
 // FilterPointInTimePhases checks that phases with only one date set (point-in-time)
-// are properly positioned: a phase with no begin must appear before the first complete
-// phase and its end must match that phase's begin; a phase with no end must appear after
-// the last complete phase and its begin must match that phase's end.
+// are properly positioned: a phase with no start must appear before the first complete
+// phase and its end must match that phase's start; a phase with no end must appear after
+// the last complete phase and its start must match that phase's end.
 func FilterPointInTimePhases(p *Package) []string {
 	var reasons []string
 	for _, v := range p.Versions {
@@ -62,12 +62,12 @@ func FilterPointInTimePhases(p *Package) []string {
 		}
 		var complete, pointInTime []indexedPhase
 		for i, ph := range v.Phases {
-			beginEmpty := ph.StartDate == ""
+			startEmpty := ph.StartDate == ""
 			endEmpty := ph.EndDate == ""
 			switch {
-			case beginEmpty && endEmpty:
+			case startEmpty && endEmpty:
 				// not applicable, ignore
-			case !beginEmpty && !endEmpty:
+			case !startEmpty && !endEmpty:
 				complete = append(complete, indexedPhase{i, ph})
 			default:
 				pointInTime = append(pointInTime, indexedPhase{i, ph})
@@ -87,13 +87,13 @@ func FilterPointInTimePhases(p *Package) []string {
 				if pt.index < first.index && ph.EndDate == first.phase.StartDate {
 					continue
 				}
-				reasons = append(reasons, fmt.Sprintf("version %q phase %q: point-in-time (begin unset, end %s) not aligned with first phase begin (%s)",
+				reasons = append(reasons, fmt.Sprintf("version %q phase %q: point-in-time (start unset, end %s) not aligned with first phase start (%s)",
 					v.Name, ph.Name, ph.EndDate, first.phase.StartDate))
 			} else {
 				if pt.index > last.index && ph.StartDate == last.phase.EndDate {
 					continue
 				}
-				reasons = append(reasons, fmt.Sprintf("version %q phase %q: point-in-time (begin %s, end unset) not aligned with last phase end (%s)",
+				reasons = append(reasons, fmt.Sprintf("version %q phase %q: point-in-time (start %s, end unset) not aligned with last phase end (%s)",
 					v.Name, ph.Name, ph.StartDate, last.phase.EndDate))
 			}
 		}
@@ -134,7 +134,7 @@ func ValidateVersionNames(p *Package) []string {
 	return reasons
 }
 
-// ValidatePhases checks that all phases have non-empty dates, end > begin, and
+// ValidatePhases checks that all phases have non-empty dates, end > start, and
 // consecutive phases are continuous (each starts one day after the previous ends).
 func ValidatePhases(p *Package) []string {
 	var reasons []string
@@ -147,21 +147,25 @@ func ValidatePhases(p *Package) []string {
 		var validPhases []Phase
 		for _, ph := range v.Phases {
 			if ph.StartDate == "" {
-				reasons = append(reasons, fmt.Sprintf("version %q phase %q: missing begin date", v.Name, ph.Name))
+				reasons = append(reasons, fmt.Sprintf("version %q phase %q: missing start date", v.Name, ph.Name))
+				continue
 			}
 			if ph.EndDate == "" {
 				reasons = append(reasons, fmt.Sprintf("version %q phase %q: missing end date", v.Name, ph.Name))
-			}
-			if ph.StartDate == "" || ph.EndDate == "" {
 				continue
 			}
-			begin, errB := time.Parse("2006-01-02", ph.StartDate)
-			end, errE := time.Parse("2006-01-02", ph.EndDate)
-			if errB != nil || errE != nil {
+			start, err := time.Parse("2006-01-02", ph.StartDate)
+			if err != nil {
+				reasons = append(reasons, fmt.Sprintf("version %q phase %q: invalid start date format %q", v.Name, ph.Name, ph.StartDate))
 				continue
 			}
-			if !end.After(begin) {
-				reasons = append(reasons, fmt.Sprintf("version %q phase %q: end (%s) is not after begin (%s)", v.Name, ph.Name, ph.EndDate, ph.StartDate))
+			end, err := time.Parse("2006-01-02", ph.EndDate)
+			if err != nil {
+				reasons = append(reasons, fmt.Sprintf("version %q phase %q: invalid end date format %q", v.Name, ph.Name, ph.EndDate))
+				continue
+			}
+			if !end.After(start) {
+				reasons = append(reasons, fmt.Sprintf("version %q phase %q: end (%s) is not after start (%s)", v.Name, ph.Name, ph.EndDate, ph.StartDate))
 				continue
 			}
 			validPhases = append(validPhases, ph)
@@ -169,10 +173,10 @@ func ValidatePhases(p *Package) []string {
 
 		for i := 1; i < len(validPhases); i++ {
 			prevEnd, _ := time.Parse("2006-01-02", validPhases[i-1].EndDate)
-			currBegin, _ := time.Parse("2006-01-02", validPhases[i].StartDate)
-			expectedBegin := prevEnd.AddDate(0, 0, 1)
-			if !currBegin.Equal(expectedBegin) {
-				reasons = append(reasons, fmt.Sprintf("version %q phase %q: begin (%s) must be one day after previous phase %q end (%s)",
+			currStart, _ := time.Parse("2006-01-02", validPhases[i].StartDate)
+			expectedStart := prevEnd.AddDate(0, 0, 1)
+			if !currStart.Equal(expectedStart) {
+				reasons = append(reasons, fmt.Sprintf("version %q phase %q: start (%s) must be one day after previous phase %q end (%s)",
 					v.Name, validPhases[i].Name, validPhases[i].StartDate, validPhases[i-1].Name, validPhases[i-1].EndDate))
 			}
 		}

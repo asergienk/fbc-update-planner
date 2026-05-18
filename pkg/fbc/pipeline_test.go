@@ -37,7 +37,9 @@ func TestReferenceFile(t *testing.T) {
 	catalog.SortByPackage()
 
 	var buf bytes.Buffer
-	GenerateFBC(catalog.Data, &buf, io.Discard)
+	if _, err := GenerateFBC(catalog.Data, &buf, io.Discard); err != nil {
+		t.Fatalf("generating FBC: %v", err)
+	}
 
 	want, err := os.ReadFile("testdata/reference-fbc.yaml")
 	if err != nil {

@@ -106,7 +106,9 @@ func TestReferenceFile(t *testing.T) {
 
 	if buf.String() != string(want) {
 		t.Errorf("FBC output does not match reference file (got %d bytes, want %d bytes)", buf.Len(), len(want))
-		os.WriteFile("testdata/actual-fbc.yaml", buf.Bytes(), 0644)
+		if err := os.WriteFile("testdata/actual-fbc.yaml", buf.Bytes(), 0644); err != nil {
+			t.Logf("failed to write actual output: %v", err)
+		}
 		t.Log("actual output written to testdata/actual-fbc.yaml")
 	}
 }
@@ -132,7 +134,9 @@ func TestReferenceFileJSONPretty(t *testing.T) {
 
 	if buf.String() != string(want) {
 		t.Errorf("FBC JSON pretty output does not match reference file (got %d bytes, want %d bytes)", buf.Len(), len(want))
-		os.WriteFile("testdata/actual-fbc-pretty.json", buf.Bytes(), 0644)
+		if err := os.WriteFile("testdata/actual-fbc-pretty.json", buf.Bytes(), 0644); err != nil {
+			t.Logf("failed to write actual output: %v", err)
+		}
 		t.Log("actual output written to testdata/actual-fbc-pretty.json")
 	}
 }
@@ -158,7 +162,9 @@ func TestReferenceFileJSON(t *testing.T) {
 
 	if buf.String() != string(want) {
 		t.Errorf("FBC JSON output does not match reference file (got %d bytes, want %d bytes)", buf.Len(), len(want))
-		os.WriteFile("testdata/actual-fbc.json", buf.Bytes(), 0644)
+		if err := os.WriteFile("testdata/actual-fbc.json", buf.Bytes(), 0644); err != nil {
+			t.Logf("failed to write actual output: %v", err)
+		}
 		t.Log("actual output written to testdata/actual-fbc.json")
 	}
 }

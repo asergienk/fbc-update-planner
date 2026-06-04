@@ -93,7 +93,7 @@ func fetch(url string, client *http.Client) (*Catalog, error) {
 	if err != nil {
 		return nil, fmt.Errorf("HTTP request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
 	}
@@ -162,12 +162,16 @@ func (c *Catalog) SortByPackage() {
 }
 
 // Dump writes the catalog products to a JSON file.
-func (c *Catalog) Dump(path string) error {
+func (c *Catalog) Dump(path string) (err error) {
 	f, err := os.Create(path)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() {
+		if cerr := f.Close(); cerr != nil && err == nil {
+			err = cerr
+		}
+	}()
 
 	enc := json.NewEncoder(f)
 	enc.SetIndent("", "  ")

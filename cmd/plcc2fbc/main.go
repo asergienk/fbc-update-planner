@@ -42,7 +42,7 @@ func main() {
 	}
 }
 
-func run() error {
+func run() (err error) {
 	var format string
 	var logPath string
 	var packages string
@@ -66,7 +66,7 @@ func run() error {
 		if err != nil {
 			return fmt.Errorf("failed to create log file: %w", err)
 		}
-		defer lf.Close()
+		defer func() { _ = lf.Close() }()
 		logWriter = lf
 	}
 	slog.SetDefault(slog.New(slog.NewJSONHandler(logWriter, nil)))
@@ -124,7 +124,11 @@ func run() error {
 		slog.Error("failed to create output file", "path", writePath, "error", err)
 		return err
 	}
-	defer f.Close()
+	defer func() {
+		if cerr := f.Close(); cerr != nil && err == nil {
+			err = fmt.Errorf("closing output file %s: %w", writePath, cerr)
+		}
+	}()
 
 	blobCount, err := fbc.GenerateFBC(catalog.Data, f, os.Stderr, writer)
 	if err != nil {

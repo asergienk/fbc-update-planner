@@ -168,7 +168,9 @@ func TestFetchFrom(t *testing.T) {
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(catalog)
+		if err := json.NewEncoder(w).Encode(catalog); err != nil {
+			t.Errorf("failed to encode response: %v", err)
+		}
 	}))
 	defer srv.Close()
 
@@ -225,7 +227,9 @@ func TestFetchFromRetry(t *testing.T) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(&Catalog{Data: []Product{{Package: "retry-pkg"}}})
+		if err := json.NewEncoder(w).Encode(&Catalog{Data: []Product{{Package: "retry-pkg"}}}); err != nil {
+			t.Errorf("failed to encode response: %v", err)
+		}
 	}))
 	defer srv.Close()
 

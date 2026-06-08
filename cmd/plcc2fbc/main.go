@@ -23,6 +23,7 @@ import (
 	"log"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 
 	flag "github.com/spf13/pflag"
@@ -50,18 +51,21 @@ func run() (err error) {
 	var inputPath string
 
 	flag.StringVarP(&format, "output", "o", "json", "output format: json, json-pretty, or yaml")
-	flag.StringVarP(&logPath, "log", "l", "", "write operational logs to a file (default: stdout)")
+	flag.StringVarP(&logPath, "log", "l", "", "write operational logs to a file; parent directory must exist (default: stdout)")
 	flag.StringVarP(&packages, "package", "p", "", "comma-separated package names to process (default: all)")
 	flag.StringVarP(&inputPath, "input", "i", "", "read PLCC JSON input from a file instead of fetching from API")
 	flag.BoolVar(&dumpPLCC, "dump-plcc", false, "dump filtered PLCC JSON instead of generating FBC")
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s [flags] <output-file>\n\nFlags:\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Usage: %s [flags] <output-file>\n\nThe parent directory of <output-file> must already exist.\n\nFlags:\n", os.Args[0])
 		flag.PrintDefaults()
 	}
 	flag.Parse()
 
 	var logWriter io.Writer = os.Stdout
 	if logPath != "" {
+		if err := validateOutputPath(logPath); err != nil {
+			return fmt.Errorf("invalid log path: %w", err)
+		}
 		lf, err := os.Create(logPath)
 		if err != nil {
 			return fmt.Errorf("failed to create log file: %w", err)
@@ -76,6 +80,9 @@ func run() (err error) {
 		return fmt.Errorf("missing output file")
 	}
 	writePath := flag.Arg(0)
+	if err := validateOutputPath(writePath); err != nil {
+		return fmt.Errorf("invalid output path: %w", err)
+	}
 
 	writer, err := fbc.NewPackageWriter(format)
 	if err != nil {
@@ -140,5 +147,20 @@ func run() (err error) {
 		return errPackageNotFound
 	}
 	slog.Info("wrote FBC data", "count", blobCount, "path", writePath, "format", format)
+	return nil
+}
+
+func validateOutputPath(path string) error {
+	dir := filepath.Dir(path)
+	info, err := os.Stat(dir)
+	if errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("parent directory %q does not exist", dir)
+	}
+	if err != nil {
+		return fmt.Errorf("cannot access parent directory %q: %w", dir, err)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("parent path %q is not a directory", dir)
+	}
 	return nil
 }

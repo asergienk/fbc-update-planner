@@ -61,9 +61,14 @@ func TestRun(t *testing.T) {
 			wantNotFound: true,
 		},
 		{
-			name:    "cannot create output file",
+			name:    "output path parent dir does not exist",
 			args:    []string{"plcc2fbc", "-i", testdataInput, "/nonexistent-dir/output.json"},
-			wantErr: "no such file or directory",
+			wantErr: "parent directory",
+		},
+		{
+			name:    "log path parent dir does not exist",
+			args:    []string{"plcc2fbc", "-i", testdataInput, "-l", "/nonexistent-dir/run.log", "/dev/null"},
+			wantErr: "parent directory",
 		},
 	}
 
@@ -177,6 +182,57 @@ func TestRunSuccess(t *testing.T) {
 
 			if tt.checks != nil {
 				tt.checks(t, outFile)
+			}
+		})
+	}
+}
+
+func TestValidateOutputPath(t *testing.T) {
+	tests := []struct {
+		name    string
+		path    string
+		wantErr string
+	}{
+		{
+			name: "valid path in temp dir",
+			path: filepath.Join(t.TempDir(), "output.json"),
+		},
+		{
+			name: "valid path in current dir",
+			path: "output.json",
+		},
+		{
+			name:    "parent dir does not exist",
+			path:    "/nonexistent-dir/sub/output.json",
+			wantErr: "does not exist",
+		},
+		{
+			name: "parent is a file not a directory",
+			path: func() string {
+				f := filepath.Join(t.TempDir(), "afile")
+				if err := os.WriteFile(f, nil, 0o644); err != nil {
+					t.Fatal(err)
+				}
+				return filepath.Join(f, "output.json")
+			}(),
+			wantErr: "not a directory",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateOutputPath(tt.path)
+			if tt.wantErr == "" {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if got := err.Error(); !strings.Contains(got, tt.wantErr) {
+				t.Errorf("error = %q, want it to contain %q", got, tt.wantErr)
 			}
 		})
 	}

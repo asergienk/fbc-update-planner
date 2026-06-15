@@ -24,7 +24,7 @@ bin/plcc2fbc [flags] <output-file>
 | `-i, --input <file>` | Read PLCC JSON input from `<file>` instead of fetching from API |
 | `--dump-plcc` | Dump filtered PLCC JSON instead of generating FBC |
 | `--strict` | Treat PLCC validation warnings as errors and filter out failing packages |
-| `--validators <list>` | Comma-separated validators to run: labels (e.g. `REQ-DATE-03`) or groups (`all`, `syntax`, `semantic`). Default: `all` |
+| `--validators <list>` | Comma-separated validators to run: labels (e.g. `REQ-DATE-03`) or groups (`all`, `syntax`, `semantic`, `catalog`). Default: `all` |
 | `--list-validators` | List available validators and exit |
 
 ## Generate FBC snapshot

@@ -270,6 +270,13 @@ func TestValidatePlatformAlignedPhases(t *testing.T) {
 			{Name: PhaseEUSTerm1, StartDate: "2026-01-01T00:00:00.000Z", EndDate: "2026-06-30T00:00:00.000Z"},
 			{Name: PhaseEUSTerm3, StartDate: "2027-01-01T00:00:00.000Z", EndDate: "2027-06-30T00:00:00.000Z"},
 		}}}}, false},
+		{"phase with only start date", Product{Versions: []Version{{Name: "4.16", Tier: "Aligned", Phases: []Phase{
+			{Name: PhaseFullSupport, StartDate: "2025-01-01T00:00:00.000Z", EndDate: "2025-06-30T00:00:00.000Z"},
+			{Name: PhaseMaintenance, StartDate: "2025-07-01T00:00:00.000Z", EndDate: "N/A"},
+			{Name: PhaseEUSTerm1, StartDate: "2026-01-01T00:00:00.000Z", EndDate: "2026-06-30T00:00:00.000Z"},
+			{Name: PhaseEUSTerm2, StartDate: "2026-07-01T00:00:00.000Z", EndDate: "2026-12-31T00:00:00.000Z"},
+			{Name: PhaseEUSTerm3, StartDate: "2027-01-01T00:00:00.000Z", EndDate: "2027-06-30T00:00:00.000Z"},
+		}}}}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -323,6 +330,10 @@ func TestValidatePlatformAgnosticPhases(t *testing.T) {
 		}}}}, false},
 		{"missing maintenance", Product{Versions: []Version{{Name: "1.0", Tier: "Agnostic", Phases: []Phase{
 			{Name: PhaseFullSupport, StartDate: "2025-01-01T00:00:00.000Z", EndDate: "2025-06-30T00:00:00.000Z"},
+		}}}}, false},
+		{"phase with only end date", Product{Versions: []Version{{Name: "1.0", Tier: "Agnostic", Phases: []Phase{
+			{Name: PhaseFullSupport, StartDate: "N/A", EndDate: "2025-06-30T00:00:00.000Z"},
+			{Name: PhaseMaintenance, StartDate: "2025-07-01T00:00:00.000Z", EndDate: "2025-12-31T00:00:00.000Z"},
 		}}}}, false},
 	}
 	for _, tt := range tests {
@@ -416,6 +427,9 @@ func TestValidateRollingStreamPhases(t *testing.T) {
 		}}}}, false},
 		{"full support with N/A dates", Product{Versions: []Version{{Name: "1.0", Tier: "Rolling", Phases: []Phase{
 			{Name: PhaseFullSupport, StartDate: "N/A", EndDate: "N/A"},
+		}}}}, false},
+		{"full support with only start date", Product{Versions: []Version{{Name: "1.0", Tier: "Rolling", Phases: []Phase{
+			{Name: PhaseFullSupport, StartDate: "2025-01-01T00:00:00.000Z", EndDate: "N/A"},
 		}}}}, false},
 	}
 	for _, tt := range tests {

@@ -634,7 +634,7 @@ func hasAnyParseableDate(ph Phase) bool {
 
 func hasPhaseWithParseableDates(v Version, phaseName string) bool {
 	for _, ph := range v.Phases {
-		if ph.Name == phaseName && hasAnyParseableDate(ph) {
+		if ph.Name == phaseName && isParseableTimestamp(ph.StartDate) && isParseableTimestamp(ph.EndDate) {
 			return true
 		}
 	}

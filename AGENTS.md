@@ -14,22 +14,25 @@
 ## Layout
 
 ```
-cmd/plcc2fbc/main.go       CLI entry point — flag parsing, orchestration
-cmd/plcc2fbc/main_test.go   Tests for CLI (run function)
-pkg/plcc/plcc.go            PLCC API client, data types, filtering, sorting
-pkg/plcc/plcc_test.go       Tests for PLCC package
-pkg/fbc/fbc.go              FBC schema, PLCC→FBC translation, GenerateFBC()
-pkg/fbc/fbc_test.go         Tests for FBC translation
-pkg/fbc/filter.go           Validation pipeline — 6 ordered Filter callbacks
-pkg/fbc/filter_test.go      Tests for individual filters
-pkg/fbc/writer.go           PackageWriter interface + JSON/YAML serializers
-pkg/fbc/writer_test.go      Tests for writers
-pkg/fbc/pipeline_test.go    Integration test — full pipeline vs reference output
-pkg/fbc/testdata/           Test fixtures (plcc.json, reference-fbc.yaml)
-docs/VALIDATION_RULES.md    Filter pipeline spec (read before touching filters)
-docs/FBC_SCHEMA.md          FBC output schema reference
-schema-examples/            Example PLCC + FBC schemas for reference
-fbc-samples/                Generated FBC snapshots (YAML, logs, validation logs)
+cmd/plcc2fbc/main.go          CLI entry point — flag parsing, orchestration
+cmd/plcc2fbc/main_test.go     Tests for CLI (run function)
+pkg/plcc/plcc.go              PLCC API client, data types, filtering, sorting
+pkg/plcc/validation.go        PLCC validator registry — per-product and catalog-level checks
+pkg/plcc/plcc_test.go         Tests for PLCC package
+pkg/plcc/validation_test.go   Tests for PLCC validators
+pkg/fbc/fbc.go                FBC schema, PLCC→FBC translation, GenerateFBC()
+pkg/fbc/fbc_test.go           Tests for FBC translation
+pkg/fbc/filter.go             Output cleanup pipeline — mutation-only filters
+pkg/fbc/filter_test.go        Tests for individual filters
+pkg/fbc/writer.go             PackageWriter interface + JSON/YAML serializers
+pkg/fbc/writer_test.go        Tests for writers
+pkg/fbc/pipeline_test.go      Integration test — full pipeline vs reference output
+pkg/fbc/testdata/             Test fixtures (plcc.json, reference-fbc.yaml, etc.)
+pkg/report/result.go          Shared ValidationResult type + JSON-lines log writer
+docs/VALIDATION_RULES.md      Filter pipeline spec (read before touching filters)
+docs/FBC_SCHEMA.md            FBC output schema reference
+schema-examples/              Example PLCC + FBC schemas for reference
+fbc-samples/                  Generated FBC snapshots (YAML, logs, validation logs)
 .github/workflows/tests.yaml  CI workflow definition
 ```
 
@@ -48,11 +51,14 @@ No separate lint command — CI runs `golangci-lint` with defaults (no `.golangc
 ```
 plcc2fbc [flags] <output-file>
 
--o, --output   Output format: json, json-pretty, or yaml (default: json)
--l, --log      Write operational logs to a file (default: stdout)
--p, --package  Comma-separated package names to process (default: all)
--i, --input    Read PLCC JSON from a file instead of fetching from API
-    --dump-plcc  Dump filtered PLCC JSON instead of generating FBC
+-o, --output        Output format: json, json-pretty, or yaml (default: json)
+-l, --log           Write operational logs to a file (default: stdout)
+-p, --package       Comma-separated package names to process (default: all)
+-i, --input         Read PLCC JSON from a file instead of fetching from API
+    --dump-plcc     Dump filtered PLCC JSON instead of generating FBC
+    --strict        Treat PLCC validation warnings as errors; filter out failing packages
+    --validators    Comma-separated validators to run: labels, or groups all/syntax/semantic/catalog (default: all)
+    --list-validators  List available validators and exit
 ```
 
 ## Architecture
@@ -61,37 +67,32 @@ plcc2fbc [flags] <output-file>
 
 ```
 PLCC API (or -i file) → plcc.Fetch()/Load()
-  → plcc.FilterByPackageNames()  # if -p flag set
-  → plcc.FilterPackages()        # otherwise: drop products without package names
-  → plcc.SortByPackage()         # alphabetical
-  → fbc.GenerateFBC()            # translate + validate + emit via PackageWriter
+  → catalog.FilterByPackageNames()  # if -p flag set
+  → catalog.FilterPackages()        # otherwise: drop products without package names
+  → catalog.SortByPackage()         # alphabetical
+  → catalog.Validate()              # catalog-level PLCC validators (cross-product checks)
+  → plcc.ValidateProduct()          # per-product PLCC validators (with --strict: filter out failures)
+  → fbc.GenerateFBC()               # translate + output cleanup + emit via PackageWriter
 
 With --dump-plcc:
-  → catalog.Dump()               # write filtered PLCC JSON directly, skip FBC generation
+  → catalog.Dump()                  # write filtered PLCC JSON directly, skip FBC generation
 ```
 
-### Validation Pipeline (`pkg/fbc/filter.go`)
+### Validation and output cleanup — two distinct layers
 
-Filters run in order via `DefaultFilters()`. Each has signature `func(*Package) []string`. Non-empty return rejects the package. Pipeline **short-circuits** on first rejection.
+1. **PLCC validators** (`pkg/plcc/validation.go`): data quality checks on raw `plcc.Product` values *before* FBC translation. Produce warnings by default; with `--strict` they filter out failing packages. Organized in two registries (`validatorRegistry` for per-product, `catalogValidatorRegistry` for cross-product) with labels (e.g. `REQ-DATE-03`, `CUSTOM-01`, `REQ-VAL-01`) and groups (`syntax`, `semantic`, `catalog`). Selectable via `--validators` flag.
 
-| Order | Function                    | Kind     |
-|-------|-----------------------------|----------|
-| 1     | FilterPointInTimePhases     | validate |
-| 2     | FilterIncompletePhases      | mutate   |
-| 3     | ValidateHasVersions         | validate |
-| 4     | ValidateVersionNames        | validate |
-| 5     | ValidatePhases              | validate |
-| 6     | ValidateOCPCompatibility    | validate |
-
-Order matters: mutating filters prepare data for validators downstream.
+2. **FBC filter pipeline** (`pkg/fbc/filter.go`): output cleanup on translated `*fbc.Package` values. Filters mutate packages to produce clean FBC blobs. Currently only `FilterIncompletePhases` (drops phases with missing dates). No validation logic — that belongs in PLCC validators. See `docs/VALIDATION_RULES.md` for the full specification.
 
 ### Key Types
 
 - `plcc.Catalog` / `plcc.Product` / `plcc.Version` / `plcc.Phase` — API-side types
-- `fbc.Package` / `fbc.VersionLifecycle` / `fbc.Phase` — output-side types
-- `fbc.ValidationResult` — structured JSON logged to stderr for rejected packages
-- `fbc.Filter` — `func(*Package) []string` pipeline callback
+- `plcc.Validator` — `func(Product) []string` — per-product validator callback
+- `plcc.CatalogValidator` — `func([]Product) CatalogRejections` — cross-product validator
+- `fbc.Package` / `fbc.Version` / `fbc.Phase` / `fbc.Platform` — output-side types
+- `fbc.Filter` — `func(*Package) []string` — output cleanup pipeline callback
 - `fbc.PackageWriter` — interface for serializing packages (JSON, JSON-pretty, YAML)
+- `report.ValidationResult` — structured JSON logged to stderr for rejected/warned packages
 
 ### FBC Schema
 
@@ -99,36 +100,42 @@ Output blobs use schema `io.openshift.operators.lifecycles.v1alpha1`. See `docs/
 
 ## Patterns to Follow
 
-### Adding a validation filter
+### Adding a PLCC validator
 
-1. Write `func ValidateMyRule(p *Package) []string` in `pkg/fbc/filter.go`
-2. Add it to `DefaultFilters()` at the correct position (mutators before validators)
-3. Add test in `pkg/fbc/filter_test.go` — table-driven, cover accept + reject paths
-4. Read `docs/VALIDATION_RULES.md` first — it explains ordering constraints
+1. Write `func ValidateMyRule(p Product) []string` in `pkg/plcc/validation.go`
+2. Add an entry to `validatorRegistry` with a label (e.g. `REQ-FOO-01`) and group (`syntax` or `semantic`)
+3. For cross-product checks, use `CatalogValidator` signature and add to `catalogValidatorRegistry`
+4. Add test in `pkg/plcc/validation_test.go` — table-driven, cover accept + reject paths
+
+### Adding an FBC output filter
+
+1. Write `func FilterMyCleanup(p *Package) []string` in `pkg/fbc/filter.go`
+2. Add it to `DefaultFilters()` — mutation only, no validation
+3. Add test in `pkg/fbc/filter_test.go` — table-driven
+4. Read `docs/VALIDATION_RULES.md` first
 
 ### Writing tests
 
-- Test data lives in `pkg/fbc/testdata/` (plcc.json, reference-fbc.yaml)
-- `pipeline_test.go` is the integration test — compares full pipeline output against `reference-fbc.yaml`
-- If your change alters valid output, update `reference-fbc.yaml` to match
+- Test data lives in `pkg/fbc/testdata/` (plcc.json, reference-fbc.yaml, reference-fbc.json, reference-fbc-pretty.json)
+- `pipeline_test.go` is the integration test — compares full pipeline output against reference files
+- If your change alters valid output, update reference files to match
 - Standard library test assertions — no external assertion libraries
 
 ### Version format
 
-Versions must match `^\d+\.\d+$` (MAJOR.MINOR only). This regex is `plcc.MajorMinorRegex`. Patch versions, pre-release suffixes, etc. are rejected.
+Versions must match `^\d+\.\d+$` (MAJOR.MINOR only). This is checked by `ValidateVersionNames` in the PLCC validator layer.
 
 ### Timestamps
 
 - PLCC API uses ISO8601 with milliseconds: `2025-11-11T00:00:00.000Z`
 - FBC output uses `YYYY-MM-DD`
-- `"N/A"` or empty timestamps translate to empty strings
+- `"N/A"` or empty timestamps translate to empty strings (lenient parsing)
 
 ## Gotchas
 
 - The CLI exits with code 2 if no valid FBC blobs are produced, and code 1 for other fatal errors — both are intentional
 - `FilterIncompletePhases` mutates the package in place (drops phases) — it never rejects
-- Phase continuity requires exactly +1 day gap between consecutive phases (no overlap, no gap)
 - All `.go` files must have the Apache 2.0 license header
 - `fbc-samples/` contains committed generated files — update via `make generate-fbc`, not by hand
 - No `.golangci.yaml` — linter uses upstream defaults
-- Duplicate package names across products cause rejection — `TranslateAndValidate` logs one failure and skips all affected products
+- Design choice: `newPackage()` silently converts unparseable timestamps to empty strings; PLCC validators catch data quality issues upstream, FBC filters then clean up the translated output

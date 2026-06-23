@@ -1,0 +1,25 @@
+# Build artifacts
+bin/
+
+# Version control and automation
+.git/
+.github/
+.fullsend/
+
+# Generated samples and schema fixtures
+fbc-samples/
+schema-examples/
+
+# Local agent config
+.claude/
+
+# Image and local build metadata
+Dockerfile
+.dockerignore
+.gitignore
+
+# Documentation
+*.md
+
+# Secrets and local env
+.env*

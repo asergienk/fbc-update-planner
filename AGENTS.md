@@ -56,7 +56,7 @@ plcc2fbc [flags] <output-path>
 -p, --package       Comma-separated package names to process (default: all)
 -i, --input         Read PLCC JSON from a file instead of fetching from API
     --dump-plcc     Dump filtered PLCC JSON instead of generating FBC
-    --strict        Treat PLCC validation warnings as errors; filter out failing packages
+    --permissive    Keep packages that fail PLCC validation instead of filtering them out
     --validators    Comma-separated validators to run: labels, or groups all/syntax/semantic/catalog (default: all)
     --list-validators  List available validators and exit
     --split         Write each package to <dir>/<package>/lifecycle.{json,yaml}; positional arg is a directory
@@ -72,7 +72,7 @@ PLCC API (or -i file) → plcc.Fetch()/Load()
   → catalog.FilterPackages()        # otherwise: drop products without package names
   → catalog.SortByPackage()         # alphabetical
   → catalog.Validate()              # catalog-level PLCC validators (cross-product checks)
-  → plcc.ValidateProduct()          # per-product PLCC validators (with --strict: filter out failures)
+  → plcc.ValidateProduct()          # per-product PLCC validators (filter out failures; --permissive keeps them)
   → fbc.GenerateFBC()               # translate + output cleanup + emit via PackageWriter
 
 With --dump-plcc:
@@ -81,7 +81,7 @@ With --dump-plcc:
 
 ### Validation and output cleanup — two distinct layers
 
-1. **PLCC validators** (`pkg/plcc/validation.go`): data quality checks on raw `plcc.Product` values *before* FBC translation. Produce warnings by default; with `--strict` they filter out failing packages. Organized in two registries (`validatorRegistry` for per-product, `catalogValidatorRegistry` for cross-product) with labels (e.g. `REQ-DATE-03`, `CUSTOM-01`, `REQ-VAL-01`) and groups (`syntax`, `semantic`, `catalog`). Selectable via `--validators` flag.
+1. **PLCC validators** (`pkg/plcc/validation.go`): data quality checks on raw `plcc.Product` values *before* FBC translation. By default they filter out failing packages; with `--permissive` they produce warnings only. Organized in two registries (`validatorRegistry` for per-product, `catalogValidatorRegistry` for cross-product) with labels (e.g. `REQ-DATE-03`, `CUSTOM-01`, `REQ-VAL-01`) and groups (`syntax`, `semantic`, `catalog`). Selectable via `--validators` flag.
 
 2. **FBC filter pipeline** (`pkg/fbc/filter.go`): output cleanup on translated `*fbc.Package` values. Filters mutate packages to produce clean FBC blobs. Currently only `FilterIncompletePhases` (drops phases with missing dates). No validation logic — that belongs in PLCC validators. See `docs/VALIDATION_RULES.md` for the full specification.
 

@@ -51,7 +51,7 @@ func run() error {
 	var packages string
 	var dumpPLCC bool
 	var inputPath string
-	var strict bool
+	var permissive bool
 	var validatorsFlag string
 	var listValidators bool
 	var split bool
@@ -61,7 +61,7 @@ func run() error {
 	flag.StringVarP(&packages, "package", "p", "", "comma-separated package names to process (default: all)")
 	flag.StringVarP(&inputPath, "input", "i", "", "read PLCC JSON input from a file instead of fetching from API")
 	flag.BoolVar(&dumpPLCC, "dump-plcc", false, "dump filtered PLCC JSON instead of generating FBC")
-	flag.BoolVar(&strict, "strict", false, "treat PLCC validation warnings as errors and filter out failing packages")
+	flag.BoolVar(&permissive, "permissive", false, "keep packages that fail PLCC validation instead of filtering them out")
 	flag.StringVar(&validatorsFlag, "validators", "all", "comma-separated list of validators to run (labels, groups: all, syntax, semantic, catalog)")
 	flag.BoolVar(&listValidators, "list-validators", false, "list available validators and exit")
 	flag.BoolVar(&split, "split", false, "write each package to <dir>/<package>/lifecycle.{json,yaml}; positional arg is a directory")
@@ -70,6 +70,7 @@ func run() error {
 		flag.PrintDefaults()
 	}
 	flag.Parse()
+	strict := !permissive
 
 	if listValidators {
 		fmt.Print(plcc.ListValidators())
@@ -253,7 +254,7 @@ func loadAndValidate(inputPath, packages, validatorsFlag string, strict bool) (*
 			}
 		}
 		if strict {
-			slog.Info("strict PLCC catalog validation", "passed", catalog.Len(), "filtered", before-catalog.Len())
+			slog.Info("PLCC catalog validation", "passed", catalog.Len(), "filtered", before-catalog.Len())
 		}
 	}
 
@@ -276,7 +277,7 @@ func loadAndValidate(inputPath, packages, validatorsFlag string, strict bool) (*
 		}
 	}
 	if strict {
-		slog.Info("strict PLCC package validation", "passed", len(filtered), "filtered", len(catalog.Data)-len(filtered))
+		slog.Info("PLCC package validation", "passed", len(filtered), "filtered", len(catalog.Data)-len(filtered))
 		catalog.Data = filtered
 	}
 

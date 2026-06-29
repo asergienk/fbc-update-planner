@@ -23,7 +23,7 @@ bin/plcc2fbc [flags] <output-path>
 | `-l, --log <file>` | Write operational logs to `<file>` (default: stdout) |
 | `-i, --input <file>` | Read PLCC JSON input from `<file>` instead of fetching from API |
 | `--dump-plcc` | Dump filtered PLCC JSON instead of generating FBC |
-| `--strict` | Treat PLCC validation warnings as errors and filter out failing packages |
+| `--permissive` | Keep packages that fail PLCC validation instead of filtering them out |
 | `--validators <list>` | Comma-separated validators to run: labels (e.g. `REQ-DATE-03`) or groups (`all`, `syntax`, `semantic`, `catalog`). Default: `all` |
 | `--list-validators` | List available validators and exit |
 | `--split` | Write each package to `<dir>/<package>/lifecycle.{json,yaml}`; positional arg is a directory |

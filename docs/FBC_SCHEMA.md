@@ -47,7 +47,7 @@ versions:
 
 ### Phase Continuity
 
-Phases within a version are ordered chronologically. Contiguity (each phase starts exactly one day after the previous phase ends) is validated at the PLCC input layer by `ValidateDatesContiguity` (REQ-DATE-04) and can be enforced with the `--strict` flag.
+Phases within a version are ordered chronologically. Contiguity (each phase starts exactly one day after the previous phase ends) is validated at the PLCC input layer by `ValidateDatesContiguity` (REQ-DATE-04) and enforced by default (use `--permissive` to keep non-contiguous data).
 Additionally, the FBC output cleanup pipeline removes point-in-time phases (missing start or end date) via `FilterIncompletePhases`.
 
 ## Platform Compatibility Fields

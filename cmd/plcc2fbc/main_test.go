@@ -98,8 +98,8 @@ func TestRun(t *testing.T) {
 			name: "split rejects path traversal in package name",
 			args: func() []string {
 				f := filepath.Join(t.TempDir(), "traversal.json")
-				_ = os.WriteFile(f, []byte(`{"data":[{"name":"evil","package":"../escape","versions":[{"name":"1.0","phases":[{"name":"GA","start_date":"2025-01-01T00:00:00.000Z","end_date":"2026-01-01T00:00:00.000Z"}]}]}]}`), 0o644)
-				return []string{"plcc2fbc", "-i", f, "-p", "../escape", "--split", t.TempDir()}
+				_ = os.WriteFile(f, []byte(`{"data":[{"name":"evil","package":"../escape","is_operator":true,"versions":[{"name":"1.0","phases":[{"name":"GA","start_date":"2025-01-01T00:00:00.000Z","end_date":"2026-01-01T00:00:00.000Z"}]}]}]}`), 0o644)
+				return []string{"plcc2fbc", "-i", f, "-p", "../escape", "--permissive", "--split", t.TempDir()}
 			}(),
 			wantErr: "unsafe package name",
 		},
@@ -179,7 +179,7 @@ func TestRunSuccess(t *testing.T) {
 		{
 			name: "package filter with match",
 			args: func(out string) []string {
-				return []string{"plcc2fbc", "-i", testdataInput, "-p", "rhacs-operator", out}
+				return []string{"plcc2fbc", "-i", testdataInput, "-p", "rhacs-operator", "--permissive", out}
 			},
 			checks: func(t *testing.T, outFile string) {
 				data, err := os.ReadFile(outFile)
@@ -250,7 +250,7 @@ func TestRunSuccess(t *testing.T) {
 		{
 			name: "split with package filter",
 			args: func(out string) []string {
-				return []string{"plcc2fbc", "-i", testdataInput, "-p", "rhacs-operator", "--split", filepath.Dir(out)}
+				return []string{"plcc2fbc", "-i", testdataInput, "-p", "rhacs-operator", "--permissive", "--split", filepath.Dir(out)}
 			},
 			skipFileCheck: true,
 			checks: func(t *testing.T, outFile string) {

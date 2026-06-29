@@ -52,7 +52,7 @@ var (
 type Validator func(Product) []string
 
 // CatalogRejections maps package names to their rejection reasons.
-// Under --strict, packages present in this map are filtered out.
+// By default, packages present in this map are filtered out.
 type CatalogRejections map[string][]string
 
 // CatalogValidator checks across all PLCC Products for cross-product issues.
@@ -234,8 +234,8 @@ func ValidateProduct(p Product, validators ...Validator) []string {
 
 // Validate runs catalog validators across the catalog's products and returns
 // per-package reasons. If no validators are provided, uses
-// DefaultCatalogValidators(). When strict is true, products that trigger
-// catalog warnings (e.g. duplicated package names) are removed from c.Data.
+// DefaultCatalogValidators(). When strict is true, products that trigger catalog
+// warnings (e.g. duplicated package names) are removed from c.Data.
 func (c *Catalog) Validate(strict bool, validators ...CatalogValidator) CatalogRejections {
 	if len(validators) == 0 {
 		validators = DefaultCatalogValidators()

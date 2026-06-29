@@ -37,7 +37,7 @@ func TestValidateProduct(t *testing.T) {
 }
 
 func TestCatalogValidate(t *testing.T) {
-	t.Run("non-strict warns without filtering", func(t *testing.T) {
+	t.Run("permissive warns without filtering", func(t *testing.T) {
 		catalog := &Catalog{Data: []Product{
 			{Package: "dup-pkg"}, {Package: "dup-pkg"}, {Package: "unique-pkg"},
 		}}
@@ -49,7 +49,7 @@ func TestCatalogValidate(t *testing.T) {
 			t.Errorf("expected 3 products unchanged, got %d", len(catalog.Data))
 		}
 	})
-	t.Run("strict filters duplicates in place", func(t *testing.T) {
+	t.Run("default filters duplicates in place", func(t *testing.T) {
 		catalog := &Catalog{Data: []Product{
 			{Package: "dup-pkg"}, {Package: "dup-pkg"}, {Package: "unique-pkg"},
 		}}
